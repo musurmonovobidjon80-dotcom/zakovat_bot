@@ -1,3 +1,4 @@
+import os
 import telebot
 import requests
 import json
@@ -15,9 +16,10 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-# --- SOZLAMALAR ---
-TOKEN = "7957174866:AAGeLbH08tpnpi1lUdKevWe2lM98Qic1M6A"
-GEMINI_KEY = "AIzaSyCpFIXo31H7BP6O0yKmHPyIBc-Sjp6H9TU"
+# --- SOZLAMALAR (Railway o'zgaruvchilaridan o'qiydi) ---
+TOKEN = os.environ.get("BOT_TOKEN", "7957174866:AAGeLbH08tpnpi1lUdKevWe2lM98Qic1M6A")
+GEMINI_KEY = os.environ.get("GEMINI_KEY", "AIzaSyCpFIXo31H7BP6O0yKmHPyIBc-Sjp6H9TU")
+
 ADMIN_ID = 362514006
 CHANNEL = -1003843614474  
 
@@ -38,7 +40,7 @@ def init_db():
 # --- BACKUP SAVOLLAR ---
 BACKUP_QUESTIONS = [
     {
-        "question": "Quyoshシステムの eng katta sayyora qaysi?",
+        "question": "Quyosh sistemasida eng katta sayyora qaysi?",
         "options": ["Yupiter", "Saturn", "Neptun", "Uran"],
         "correct_index": 0,
         "explanation": "Yupiter Quyosh sistemasidagi eng katta sayyora hisoblanadi."
@@ -59,7 +61,6 @@ def get_ai_question():
     mavzular = ["Mantiq", "Tarix", "IT", "San'at", "Geografiya", "Sport", "Koinot", "Biologiya"]
     mavzu = random.choice(mavzular)
     
-    # Google talabiga ko'ra model nomi yangilandi, aks holda API xato beradi
     url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={GEMINI_KEY}"
     headers = {'Content-Type': 'application/json'}
     
@@ -97,7 +98,6 @@ def send_quiz():
         
         explanation = data.get('explanation', "To'g'ri javob!")[:190]
         
-        # O'zingiz yozgandek Kanalga anonim holda yuboriladi
         msg = bot.send_poll(
             chat_id=CHANNEL,
             question=data['question'],
