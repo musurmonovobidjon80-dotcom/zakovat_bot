@@ -56,7 +56,7 @@ BACKUP_QUESTIONS = [
 def get_backup_question():
     return random.choice(BACKUP_QUESTIONS)
 
-# --- GEMINI AI ---
+# --- GEMINI AI (Model yangilandi) ---
 def get_ai_question():
     mavzular = ["Mantiq", "Tarix", "IT", "San'at", "Geografiya", "Sport", "Koinot", "Biologiya"]
     mavzu = random.choice(mavzular)
@@ -121,7 +121,7 @@ def send_quiz():
         logger.error(f"❌ Xato: {e}")
         return False
 
-# --- HANDLERS ---
+# --- JAVOBLARNI QABUL QILISH ---
 @bot.poll_answer_handler()
 def handle_poll_answer(answer):
     try:
@@ -140,6 +140,27 @@ def handle_poll_answer(answer):
     except Exception as e:
         logger.error(f"❌ Ball hisoblashda xato: {e}")
 
+# --- BUYRUQLAR (HANDLERS) ---
+
+@bot.message_handler(commands=['start'])
+def start_handler(message):
+    bot.reply_to(
+        message, 
+        "👋 Assalomu alaykum! Zakovat AI botiga xush kelibsiz.\n\n"
+        "🤖 Bu bot guruh yoki kanallarga avtomatik ravishda qiziqarli testlar yuborib turadi."
+    )
+
+@bot.message_handler(commands=['test'])
+def test_handler(message):
+    me = bot.get_me()
+    bot.reply_to(
+        message, 
+        f"🚀 Bot holati: ONLAYN\n"
+        f"🤖 Bot: @{me.username}\n"
+        f"📢 Kanal ID: {CHANNEL}\n"
+        f"👤 Sizning ID: {message.from_user.id}"
+    )
+
 @bot.message_handler(commands=['savol'])
 def admin_savol(message):
     if message.from_user.id == ADMIN_ID:
@@ -147,15 +168,11 @@ def admin_savol(message):
         if send_quiz():
             bot.send_message(message.chat.id, "✅ Savol chiqdi!")
         else:
-            bot.send_message(message.chat.id, "❌ Xato! Bot adminligini tekshiring.")
+            bot.send_message(message.chat.id, "❌ Xato! Bot kanalda admin ekanligini tekshiring.")
+    else:
+        bot.reply_to(message, f"⚠️ Bu buyruq faqat admin uchun! Sizning ID: {message.from_user.id}")
 
-@bot.message_handler(commands=['test'])
-def test_handler(message):
-    if message.from_user.id == ADMIN_ID:
-        me = bot.get_me()
-        bot.reply_to(message, f"🤖 @{me.username} ishlamoqda\n📢 Kanal ID: {CHANNEL}")
-
-# --- SCHEDULER ---
+# --- SCHEDULER (REJA) ---
 def scheduled_quiz():
     send_quiz()
 
@@ -166,5 +183,5 @@ if __name__ == "__main__":
         scheduler.add_job(scheduled_quiz, 'cron', hour=h, minute=0)
     scheduler.start()
     
-    logger.info("🚀 Bot va Scheduler ishga tushdi...")
+    logger.info("🚀 Bot va Scheduler muvaffaqiyatli ishga tushdi...")
     bot.infinity_polling()
