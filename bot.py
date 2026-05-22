@@ -21,7 +21,7 @@ logger = logging.getLogger(__name__)
 TOKEN = os.environ.get("BOT_TOKEN", "7957174866:AAGeLbH08tpnpi1lUdKevWe2lM98Qic1M6A")
 GEMINI_KEY = os.environ.get("GEMINI_KEY", "AIzaSyCpFIXo31H7BP6O0yKmHPyIBc-Sjp6H9TU")
 
-ADMIN_ID = 8553158957  
+ADMIN_ID = 362514006  
 CHANNEL = -1003843614474  
 
 bot = telebot.TeleBot(TOKEN)
