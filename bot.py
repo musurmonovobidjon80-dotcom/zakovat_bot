@@ -16,7 +16,7 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-# --- SOZLAMALAR (Railway o'zgaruvchilaridan o'qiydi) ---
+# --- SOZLAMALAR ---
 TOKEN = os.environ.get("BOT_TOKEN", "7957174866:AAGeLbH08tpnpi1lUdKevWe2lM98Qic1M6A")
 GEMINI_KEY = os.environ.get("GEMINI_KEY", "AIzaSyCpFIXo31H7BP6O0yKmHPyIBc-Sjp6H9TU")
 
@@ -25,7 +25,7 @@ CHANNEL = -1003843614474
 
 bot = telebot.TeleBot(TOKEN)
 
-# --- MA'LUMOTLAR BAZASI ---
+# --- MA'LUMOTLAR BAZASI (YANGILANDI) ---
 def init_db():
     conn = sqlite3.connect('zakovat_tizimi.db', check_same_thread=False)
     cursor = conn.cursor()
@@ -33,49 +33,63 @@ def init_db():
                       (user_id INTEGER, username TEXT, score INTEGER, date TEXT)''')
     cursor.execute('''CREATE TABLE IF NOT EXISTS polls 
                       (poll_id TEXT PRIMARY KEY, correct_option INTEGER)''')
+    # Chiqqan savollarni takrorlamaslik uchun yangi jadval
+    cursor.execute('''CREATE TABLE IF NOT EXISTS sent_questions 
+                      (question_text TEXT PRIMARY KEY)''')
     conn.commit()
     conn.close()
-    logger.info("✅ Ma'lumotlar bazasi tayyor")
+    logger.info("✅ Ma'lumotlar bazasi va nazorat tizimi tayyor")
 
-# --- BACKUP SAVOLLAR ---
-BACKUP_QUESTIONS = [
-    {
-        "question": "Quyosh sistemasida eng katta sayyora qaysi?",
-        "options": ["Yupiter", "Saturn", "Neptun", "Uran"],
-        "correct_index": 0,
-        "explanation": "Yupiter Quyosh sistemasidagi eng katta sayyora hisoblanadi."
-    },
-    {
-        "question": "Insonning eng kuchli mushagi qaysi?",
-        "options": ["Yurak", "Jag' mushagi", "Boldir", "Dumba mushagi"],
-        "correct_index": 1,
-        "explanation": "Jag' mushagi (masseter) insonning eng kuchli mushagidir."
-    }
-]
+# --- SAVOL OLDIN CHIQANINI TEKSHIRISH ---
+def is_question_sent(question_text):
+    conn = sqlite3.connect('zakovat_tizimi.db')
+    cursor = conn.cursor()
+    cursor.execute("SELECT 1 FROM sent_questions WHERE question_text = ?", (question_text,))
+    row = cursor.fetchone()
+    conn.close()
+    return row is not None
 
-def get_backup_question():
-    return random.choice(BACKUP_QUESTIONS)
+# --- SAVOLNI BAZAGA QO'SHISH ---
+def save_sent_question(question_text):
+    try:
+        conn = sqlite3.connect('zakovat_tizimi.db')
+        cursor = conn.cursor()
+        cursor.execute("INSERT OR IGNORE INTO sent_questions VALUES (?)", (question_text,))
+        conn.commit()
+        conn.close()
+    except Exception as e:
+        logger.error(f"❌ Savolni bazaga saqlashda xato: {e}")
 
-# --- GEMINI AI (Model yangilandi) ---
+# --- GEMINI AI (XATOSIZ VA YANGILANGAN FORMAT) ---
 def get_ai_question():
-    mavzular = ["Mantiq", "Tarix", "IT", "San'at", "Geografiya", "Sport", "Koinot", "Biologiya"]
+    mavzular = [
+        "Mantiqiy savollar", "Dunyo tarixi", "IT va Texnologiya", "San'at va Adabiyot", 
+        "Geografiya va Sayyoralar", "Sport olami", "Koinot sirlari", "Biologiya va Tabiat",
+        "Kimyo va Fizika qonunlari", "Mashhur shaxslar hayoti", "Iqtisodiyot va Biznes"
+    ]
+    
+    # Har safar butunlay tasodifiy mavzu va qo'shimcha tasodifiy raqam beriladi (Gemini bir xil qaytarmasligi uchun)
     mavzu = random.choice(mavzular)
+    random_modifier = random.randint(100, 9999)
     
     url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={GEMINI_KEY}"
     headers = {'Content-Type': 'application/json'}
     
-    prompt_text = f"""Zakovat bot uchun {mavzu} mavzusida qiziqarli savol tuzing.
-    Javob FAQAT JSON formatda bo'lsin:
+    prompt_text = f"""Siz professional Zakovat ekspertisiz. {mavzu} mavzusida o'ta qiziqarli, o'ylantiradigan yangi intellektual savol tuzing. (Identifikator: {random_modifier}).
+    Javob mutloq va FAQAT quyidagi JSON formatda bo'lishi shart, hech qanday qo'shimcha matn yozmang:
     {{
-      "question": "Savol?",
-      "options": ["V1", "V2", "V3", "V4"],
+      "question": "Savol matni bu yerda?",
+      "options": ["Variant 1", "Variant 2", "Variant 3", "Variant 4"],
       "correct_index": 0,
-      "explanation": "Izoh"
+      "explanation": "To'g'ri javobning qisqacha ilmiy yoki mantiqiy izohi"
     }}"""
     
     payload = {
         "contents": [{"parts": [{"text": prompt_text}]}],
-        "generationConfig": {"temperature": 0.9, "responseMimeType": "application/json"}
+        "generationConfig": {
+            "temperature": 0.95, 
+            "responseMimeType": "application/json"
+        }
     }
 
     try:
@@ -84,17 +98,31 @@ def get_ai_question():
             res_json = response.json()
             ai_text = res_json['candidates'][0]['content']['parts'][0]['text']
             return json.loads(ai_text)
-        return None
+        else:
+            logger.error(f"❌ Google API xato berdi, Status: {response.status_code}")
+            return None
     except Exception as e:
-        logger.error(f"❌ Gemini xatosi: {e}")
+        logger.error(f"❌ Gemini tizimida texnik xatolik: {e}")
         return None
 
-# --- SAVOL YUBORISH ---
+# --- SAVOL YUBORISH VA TAKRORLANISH NAZORATI ---
 def send_quiz():
     try:
-        data = get_ai_question()
+        # Yangi va takrorlanmas savol topilguncha urinib ko'radi (maksimal 5 marta)
+        data = None
+        for _ in range(5):
+            potential_data = get_ai_question()
+            if potential_data and 'question' in potential_data:
+                # Agar bu savol oldin kanalga chiqmagan bo'lsa, qabul qilamiz
+                if not is_question_sent(potential_data['question']):
+                    data = potential_data
+                    break
+                else:
+                    logger.info(f"🔄 Takroriy savol aniqlandi, qayta so'ralmoqda: {potential_data['question']}")
+        
         if not data:
-            data = get_backup_question()
+            logger.error("❌ Yangi va takrorlanmas savol generatsiya qilib bo'lmadi.")
+            return False
         
         explanation = data.get('explanation', "To'g'ri javob!")[:190]
         
@@ -108,20 +136,23 @@ def send_quiz():
             is_anonymous=True  
         )
         
-        # Bazaga saqlash
+        # Kelajakda takrorlanmasligi uchun savol matnini bazaga yozib qo'yamiz
+        save_sent_question(data['question'])
+        
+        # Poll javoblarini tekshirish uchun bazaga yozish
         conn = sqlite3.connect('zakovat_tizimi.db')
         cursor = conn.cursor()
         cursor.execute("INSERT INTO polls VALUES (?, ?)", (msg.poll.id, data['correct_index']))
         conn.commit()
         conn.close()
         
-        logger.info(f"✅ Savol yuborildi: {msg.poll.id}")
+        logger.info(f"✅ Yangi savol kanalga chiqdi: {data['question']}")
         return True
     except Exception as e:
-        logger.error(f"❌ Xato: {e}")
+        logger.error(f"❌ Savol yuborishda umumiy xatolik: {e}")
         return False
 
-# --- JAVOBLARNI QABUL QILISH ---
+# --- HANDLERS ---
 @bot.poll_answer_handler()
 def handle_poll_answer(answer):
     try:
@@ -140,14 +171,12 @@ def handle_poll_answer(answer):
     except Exception as e:
         logger.error(f"❌ Ball hisoblashda xato: {e}")
 
-# --- BUYRUQLAR (HANDLERS) ---
-
 @bot.message_handler(commands=['start'])
 def start_handler(message):
     bot.reply_to(
         message, 
-        "👋 Assalomu alaykum! Zakovat AI botiga xush kelibsiz.\n\n"
-        "🤖 Bu bot guruh yoki kanallarga avtomatik ravishda qiziqarli testlar yuborib turadi."
+        "👋 Assalomu alaykum! Zakovat AI intellektual boshqaruv botiga xush kelibsiz.\n\n"
+        "🤖 Bot har safar takrorlanmas va mutloq yangi savollarni generatsiya qilib kanalga uzatadi."
     )
 
 @bot.message_handler(commands=['test'])
@@ -155,7 +184,7 @@ def test_handler(message):
     me = bot.get_me()
     bot.reply_to(
         message, 
-        f"🚀 Bot holati: ONLAYN\n"
+        f"🚀 Bot holati: FAOL (Uzluksiz rejim)\n"
         f"🤖 Bot: @{me.username}\n"
         f"📢 Kanal ID: {CHANNEL}\n"
         f"👤 Sizning ID: {message.from_user.id}"
@@ -164,24 +193,25 @@ def test_handler(message):
 @bot.message_handler(commands=['savol'])
 def admin_savol(message):
     if message.from_user.id == ADMIN_ID:
-        bot.reply_to(message, "⏳ Savol kanalga yuborilmoqda...")
+        bot.reply_to(message, "⏳ Google AI tizimidan takrorlanmas yangi savol olinmoqda...")
         if send_quiz():
-            bot.send_message(message.chat.id, "✅ Savol chiqdi!")
+            bot.send_message(message.chat.id, "✅ Mutloq yangi savol kanalga muvaffaqiyatli joylandi!")
         else:
-            bot.send_message(message.chat.id, "❌ Xato! Bot kanalda admin ekanligini tekshiring.")
+            bot.send_message(message.chat.id, "❌ Savol yuborishda xatolik yuz berdi. Railway loglarini ko'ring.")
     else:
-        bot.reply_to(message, f"⚠️ Bu buyruq faqat admin uchun! Sizning ID: {message.from_user.id}")
+        bot.reply_to(message, f"⚠️ Bu buyruq faqat admin uchun!")
 
-# --- SCHEDULER (REJA) ---
+# --- SCHEDULER ---
 def scheduled_quiz():
     send_quiz()
 
 if __name__ == "__main__":
     init_db()
     scheduler = BackgroundScheduler(timezone="Asia/Tashkent")
+    # Har kuni belgilangan soatlarda yangi savol yuboriladi
     for h in [9, 12, 15, 18, 21]:
         scheduler.add_job(scheduled_quiz, 'cron', hour=h, minute=0)
     scheduler.start()
     
-    logger.info("🚀 Bot va Scheduler muvaffaqiyatli ishga tushdi...")
+    logger.info("🚀 Bot va takrorlanishni nazorat qiluvchi tizim ishga tushdi...")
     bot.infinity_polling()
