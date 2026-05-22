@@ -60,9 +60,8 @@ def save_sent_question(question_text):
     except Exception as e:
         logger.error(f"❌ Savolni bazaga saqlashda xato: {e}")
 
-# --- GEMINI AI (QAT'IY JSON SXEMA INTEGRATSIYASI) ---
+# --- GEMINI AI (XATOSIZ STANDARD STRUKTURA) ---
 def get_ai_question():
-    # Kengaytirilgan va har xil mavzular ro'yxati
     mavzular = [
         "Mantiqiy va intellektual topishmoq", "Jahon tarixi va qiziqarli faktlar", 
         "Zamonaviy IT, texnologiyalar va kashfiyotlar", "Klassik san'at, kino va adabiyot", 
@@ -77,30 +76,20 @@ def get_ai_question():
     url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={GEMINI_KEY}"
     headers = {'Content-Type': 'application/json'}
     
-    prompt_text = f"""Siz tajribali Zakovat klubi muharririsiz. {mavzu} yo'nalishida o'ta qiziqarli, o'ylantiradigan, avval hech qayerda berilmagan mutloq yangi intellektual savol tuzing.
-    Savol lo'nda, aniq va qiziqarli bo'lsin. Variantlar ichida faqat bittasi to'g'ri bo'lishi shart. Kod: {random_modifier}."""
+    prompt_text = f"""Siz tajribali Zakovat klubi muharririsiz. {mavzu} yo'nalishida o'ta qiziqarli, o'ylantiradigan, avval hech qayerda berilmagan mutloq yangi intellektual savol tuzing. Kod: {random_modifier}.
+    Javobni FAQAT va FAQAT pastdagi JSON formatida qaytaring, hech qanday kirish yoki tushuntirish matni yozmang, markdown (```json) belgilarini ishlatmang:
+    {{
+      "question": "Savol matni shu yerda?",
+      "options": ["Variant 1", "Variant 2", "Variant 3", "Variant 4"],
+      "correct_index": 0,
+      "explanation": "To'g'ri javobning qisqacha izohi"
+    }}"""
     
-    # Google API rad etolmaydigan qat'iy JSON sxemasi
     payload = {
         "contents": [{"parts": [{"text": prompt_text}]}],
         "generationConfig": {
-            "temperature": 1.0,  # Har xillikni (kreativlikni) maksimal qilish uchun
-            "responseMimeType": "application/json",
-            "responseSchema": {
-                "type": "OBJECT",
-                "properties": {
-                    "question": {"type": "STRING"},
-                    "options": {
-                        "type": "ARRAY",
-                        "items": {"type": "STRING"},
-                        "minItems": 4,
-                        "maxItems": 4
-                    },
-                    "correct_index": {"type": "INTEGER"},
-                    "explanation": {"type": "STRING"}
-                },
-                "required": ["question", "options", "correct_index", "explanation"]
-            }
+            "temperature": 1.0,
+            "responseMimeType": "application/json"
         }
     }
 
@@ -109,32 +98,32 @@ def get_ai_question():
         if response.status_code == 200:
             res_json = response.json()
             ai_text = res_json['candidates'][0]['content']['parts'][0]['text'].strip()
+            # Har ehtimolga qarshi ortiqcha belgilarni tozalash
+            ai_text = re.sub(r'^```text|^```json|```$', '', ai_text, flags=re.MULTILINE).strip()
             return json.loads(ai_text)
         else:
-            logger.error(f"❌ Google API xato berdi. Status: {response.status_code}, Javob: {response.text}")
+            logger.error(f"❌ Google API Status: {response.status_code}")
             return None
     except Exception as e:
-        logger.error(f"❌ Gemini tizimida xatolik: {e}")
+        logger.error(f"❌ Gemini xatoligi: {e}")
         return None
 
-# --- SAVOL YUBORISH VA NAZORAT TIZIMI ---
+# --- SAVOL YUBORISH REJIMI ---
 def send_quiz():
     try:
         data = None
-        # Faqat sun'iy intellektdan yangi va takrorlanmas savol topguncha 5 marta urinadi
+        # Yangi va har xil savol topguncha 5 marta urinish
         for i in range(5):
             potential_data = get_ai_question()
-            if potential_data and 'question' in potential_data:
-                # Agar savol matni bazada bo'lmasa - qabul qilamiz
+            if potential_data and 'question' in potential_data and 'options' in potential_data:
                 if not is_question_sent(potential_data['question']):
                     data = potential_data
                     break
                 else:
-                    logger.info(f"🔄 Takroriy savol rad etildi, qayta urinish: {i+1}")
+                    logger.info(f"🔄 Takroriy savol chiqdi, tashlab yuborildi. Urinish: {i+1}")
         
-        # Agar qat'iy sxemaga qaramay Gemini'dan mutloq javob bo'lmasa, favqulodda xabar logga yoziladi
         if not data:
-            logger.error("❌ Sun'iy intellektdan yangi savol olib bo'lmadi, API kalit yoki limitni tekshiring.")
+            logger.error("❌ Sun'iy intellektdan mutloq yangi savol olib bo'lmadi.")
             return False
 
         explanation = data.get('explanation', "To'g'ri javob!")[:190]
@@ -144,24 +133,24 @@ def send_quiz():
             question=data['question'],
             options=data['options'],
             type='quiz',
-            correct_option_id=data['correct_index'],
+            correct_option_id=int(data['correct_index']),
             explanation=explanation,
             is_anonymous=True  
         )
         
-        # Kelajakda bu savol umuman qaytalanmasligi uchun bazaga yozamiz
+        # Savolni eslab qolish mantiqi
         save_sent_question(data['question'])
         
         conn = sqlite3.connect('zakovat_tizimi.db')
         cursor = conn.cursor()
-        cursor.execute("INSERT INTO polls VALUES (?, ?)", (msg.poll.id, data['correct_index']))
+        cursor.execute("INSERT INTO polls VALUES (?, ?)", (msg.poll.id, int(data['correct_index'])))
         conn.commit()
         conn.close()
         
         logger.info(f"✅ Kanalga mutloq yangi savol chiqdi: {data['question']}")
         return True
     except Exception as e:
-        logger.error(f"❌ Savol yuborish tizimida kutilmagan xato: {e}")
+        logger.error(f"❌ Savol yuborish tizimida xato: {e}")
         return False
 
 # --- HANDLERS ---
@@ -185,12 +174,12 @@ def handle_poll_answer(answer):
 
 @bot.message_handler(commands=['start'])
 def start_handler(message):
-    bot.reply_to(message, "👋 Zakovat AI boshqaruv tizimi faol!\n\n🤖 Tizim har safar Gemini intellektidan mutloq yangi, takrorlanmas savollar generatsiya qiladi.")
+    bot.reply_to(message, "👋 Assalomu alaykum! Zakovat AI tizimi to'liq va xatosiz rejimda ishga tushdi.\n\n🤖 Bot endi faqat sun'iy intellektdan mutloq yangi va har xil savollarni oladi.")
 
 @bot.message_handler(commands=['test'])
 def test_handler(message):
     me = bot.get_me()
-    bot.reply_to(message, f"🚀 Tizim holati: ONLAYN\n🤖 Bot: @{me.username}\n📢 Kanal: {CHANNEL}")
+    bot.reply_to(message, f"🚀 Tizim: ONLAYN\n🤖 Bot: @{me.username}\n📢 Kanal: {CHANNEL}")
 
 @bot.message_handler(commands=['savol'])
 def admin_savol(message):
@@ -199,7 +188,7 @@ def admin_savol(message):
         if send_quiz():
             bot.send_message(message.chat.id, "✅ Yangi savol kanalga muvaffaqiyatli joylashtirildi!")
         else:
-            bot.send_message(message.chat.id, "❌ API ulanishda xato. Railway loglarini tekshiring yoki API kalit almashtiring.")
+            bot.send_message(message.chat.id, "❌ API ulanish yoki formatlashda xato bo'ldi. Railway loglarini tekshiring.")
     else:
         bot.reply_to(message, "⚠️ Bu buyruq faqat bot egasi uchun!")
 
@@ -214,5 +203,5 @@ if __name__ == "__main__":
         scheduler.add_job(scheduled_quiz, 'cron', hour=h, minute=0)
     scheduler.start()
     
-    logger.info("🚀 Bot cheksiz va har xil savollar rejimida ishga tushdi...")
+    logger.info("🚀 Bot barqaror va cheksiz savollar rejimida ishga tushdi...")
     bot.infinity_polling()
