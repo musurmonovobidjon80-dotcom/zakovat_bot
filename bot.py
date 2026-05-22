@@ -21,7 +21,7 @@ logger = logging.getLogger(__name__)
 TOKEN = os.environ.get("BOT_TOKEN", "7957174866:AAGeLbH08tpnpi1lUdKevWe2lM98Qic1M6A")
 GEMINI_KEY = os.environ.get("GEMINI_KEY", "AIzaSyCpFIXo31H7BP6O0yKmHPyIBc-Sjp6H9TU")
 
-ADMIN_ID = 8553158957
+ADMIN_ID = 8553158957  
 CHANNEL = -1003843614474  
 
 bot = telebot.TeleBot(TOKEN)
@@ -60,69 +60,48 @@ def save_sent_question(question_text):
     except Exception as e:
         logger.error(f"❌ Savolni bazaga saqlashda xato: {e}")
 
-# --- 30 TA TAYYOR ZAXIRA SAVOLLAR (TAKRORLANMASLIK FILTRI BILAN) ---
-BACKUP_QUESTIONS = [
-    {"question": "Quyosh sistemasida eng katta sayyora qaysi?", "options": ["Yupiter", "Saturn", "Neptun", "Uran"], "correct_index": 0, "explanation": "Yupiter Quyosh sistemasidagi eng katta sayyora hisoblanadi."},
-    {"question": "Insonning eng kuchli mushagi qaysi?", "options": ["Yurak", "Jag' mushagi", "Boldir", "Dumba mushagi"], "correct_index": 1, "explanation": "Jag' mushagi (masseter) insonning eng kuchli mushagidir."},
-    {"question": "Dunyodagi eng chuqur ko'l qaysi?", "options": ["Kaspiy", "Baykal", "Viktoriya", "Tanganika"], "correct_index": 1, "explanation": "Baykal ko'li dunyodagi eng chuqur chuchuk suvli ko'ldir."},
-    {"question": "Birinchi elektron hisoblash mashinasi (EHM) qaysi yil yaratilgan?", "options": ["1936-yil", "1946-yil", "1953-yil", "1961-yil"], "correct_index": 1, "explanation": "Dunyodagi birinchi elektron kompyuter ENIAC 1946-yilda AQSHda yaratilgan."},
-    {"question": "Qaysi davlat hududida eng ko'p vaqt mintaqalari joylashgan?", "options": ["Rossiya", "AQSH", "Fransiya", "Kanada"], "correct_index": 2, "explanation": "Fransiyaning chet eldagi hududlari bilan birga jami 12 ta vaqt mintaqasi bor."},
-    {"question": "Inson tanasidagi eng kichik suyak qayerda joylashgan?", "options": ["Burunda", "Quloqda", "Barmoqda", "Ko'zda"], "correct_index": 1, "explanation": "Inson tanasidagi eng kichik suyak o'rta quloqdagi uzangisimon suyakdir."},
-    {"question": "Dunyodagi eng uzun daryo qaysi?", "options": ["Amazonka", "Nil", "Missisipi", "Yanszi"], "correct_index": 1, "explanation": "Nil daryosi dunyodagi eng uzun daryo hisoblanadi (6650 km)."},
-    {"question": "Fransiyaning poytaxti Parij shahrida joylashgan mashhur minora qaysi?", "options": ["Piza", "Eymor", "Eyfel", "Big Ben"], "correct_index": 2, "explanation": "Eyfel minorasi Parijning ramziy me'moriy yodgorligidir."},
-    {"question": "Qaysi element kimyoviy elementlar davriy jadvalida birinchi bo'lib turadi?", "options": ["Geliy", "Kislorod", "Azot", "Vodorod"], "correct_index": 3, "explanation": "Vodorod eng engil element bo'lib, davriy jadvalda 1-raqamda turadi."},
-    {"question": "Yer yuzida eng ko'p tarqalgan gaz qaysi?", "options": ["Kislorod", "Azot", "Karbonat angidrid", "Vodorod"], "correct_index": 1, "explanation": "Yer atmosferasining qariyb 78 foizini azot gazi tashkil qiladi."},
-    {"question": "Dunyodagi eng katta okean qaysi?", "options": ["Atlantika", "Hind", "Tinch", "Shimaliy Muz"], "correct_index": 2, "explanation": "Tinch okeani maydoni bo'yicha dunyodagi eng katta okeandir."},
-    {"question": "Shaxmat taxtasida jami nechta kvadrat kataklar bor?", "options": ["32 ta", "48 ta", "64 ta", "81 ta"], "correct_index": 2, "explanation": "Shaxmat taxtasi 8x8 o'lchamda bo'lib, jami 64 ta katakdan iborat."},
-    {"question": "Internet tarmog'i dastlab qaysi tashkilot tomonidan ishlab chiqilgan?", "options": ["NASA", "Pentagon", "CERN", "Microsoft"], "correct_index": 1, "explanation": "Internet ARPANET loyihasi ostida AQSH Mudofaa vazirligi tomonidan yaratilgan."},
-    {"question": "Kompyuterning miyasi hisoblangan va barcha amallarni bajaradigan qurilma nima?", "options": ["Operativ xotira", "Qattiq disk", "Prosedur", "Markaziy protsessor"], "correct_index": 3, "explanation": "Markaziy protsessor (CPU) kompyuterning barcha hisoblash ishlarini bajaradi."},
-    {"question": "Matematikada har qanday sonning 0-darajasi nimaga teng bo'ladi?", "options": ["0 ga", "1 ga", "Sonning o'ziga", "Cheksizlikka"], "correct_index": 1, "explanation": "Noldan farqli har qanday sonning nolinchi darajasi doimo 1 ga teng."},
-    {"question": "O'zbekiston Respublikasining milliy valyutasi qaysi yildan muomalaga kiritilgan?", "options": ["1991-yil", "1992-yil", "1994-yil", "1996-yil"], "correct_index": 2, "explanation": "O'zbekiston milliy valyutasi so'm 1994-yil 1-iyuldan boshlab muomalaga kiritilgan."},
-    {"question": "Dunyoda eng ko'p aholi yashaydigan davlat qaysi?", "options": ["Xitoy", "Hindiston", "AQSH", "Indoneziya"], "correct_index": 1, "explanation": "Hozirgi kunda Hindiston aholi soni bo'yicha dunyoda birinchi o'rinda turadi."},
-    {"question": "Avstraliya qit'asining poytaxti qaysi shahar?", "options": ["Sidney", "Melburn", "Kanberra", "Brisben"], "correct_index": 2, "explanation": "Kanberra shahri Avstraliya Ittifoqining rasmiy poytaxti hisoblanadi."},
-    {"question": "Oddiy suv tarkibida nechta vodorod atomi muzojat etadi?", "options": ["1 ta", "2 ta", "3 ta", "4 ta"], "correct_index": 1, "explanation": "Suvning kimyoviy formulasi H2O bo'lib, unda 2 ta vodorod atomi bor."},
-    {"question": "Yorug'lik tezligi sekundiga taxminan necha kilometrni tashkil etadi?", "options": ["150 000 km/s", "300 000 km/s", "450 000 km/s", "600 000 km/s"], "correct_index": 1, "explanation": "Yorug'lik vakuumda sekundiga taxminan 300 000 kilometr tezlikda harakatlanadi."},
-    {"question": "O'zbekistonning eng chekka janubiy viloyati qaysi?", "options": ["Surxondaryo", "Qashqadaryo", "Xorazm", "Andijon"], "correct_index": 0, "explanation": "Surxondaryo viloyati mamlakatimizning eng janubiy hududida joyhazilgan."},
-    {"question": "Qaysi sayyora o'zining atrofidagi ulkan halqalari bilan mashhur?", "options": ["Yupiter", "Saturn", "Mars", "Merkuriy"], "correct_index": 1, "explanation": "Saturn sayyorasi muz va tosh bo'laklaridan iborat ulkan yorqin halqalarga ega."},
-    {"question": "Dasturlashda eng ko'p ishlatiladigan 'Python' tili qaysi yili yaratilgan?", "options": ["1989-yil", "1991-yil", "1995-yil", "2000-yil"], "correct_index": 1, "explanation": "Python tili Gvido van Rossum tomonidan 1991-yilda ommaga taqdim etilgan."},
-    {"question": "Inson tanasidagi eng katta ichki organ qaysi?", "options": ["Yurak", "O'pka", "Jigar", "Oshqozon"], "correct_index": 2, "explanation": "Jigar inson organizmidagi eng katta ichki organ hisoblanadi."},
-    {"question": "Yer Quyosh atrofini to'liq necha kunda aylanib chiqadi?", "options": ["360 kunda", "365 kunda", "366 kunda", "365 yoki 366 kunda"], "correct_index": 3, "explanation": "Yer Quyosh atrofini 365 kunu 6 soatda aylanadi, shu sababli har 4 yilda kabisa yili bo'ladi."},
-    {"question": "Qaysi hayvon quruqlikdagi eng tezkor jonzot hisoblanadi?", "options": ["Arslon", "Gepard", "Qoplon", "Bo'ri"], "correct_index": 1, "explanation": "Gepard quruqlikda qisqa masofaga soatiga 110-120 km tezlikda yugura oladi."},
-    {"question": "Olimpiada o'yinlari necha yilda bir marta o'tkaziladi?", "options": ["2 yilda", "3 yilda", "4 yilda", "5 yilda"], "correct_index": 2, "explanation": "Xalqaro Olimpiada o'yinlari an'anaviy ravishda har 4 yilda bir marta tashkil etiladi."},
-    {"question": "Dunyodagi eng baland tog' cho'qqisi qaysi?", "options": ["K2", "Kanchedjanga", "Lxoze", "Everest"], "correct_index": 3, "explanation": "Everest cho'qqisi dengiz sathidan 8848 metr balandlikda joylashgan eng baland nuqtadir."},
-    {"question": "Amerikani kashf etgan mashhur sayyoh kim?", "options": ["Vasko da Gama", "Xristofor Kolumb", "Magellan", "Marko Polo"], "correct_index": 1, "explanation": "Xristofor Kolumb 1492-yilda yangi qit'ani (Amerikani) kashf etgan."},
-    {"question": "Inson ko'zi qaysi rang turlarini eng yaxshi va aniq ajrata oladi?", "options": ["Qizil", "Ko'k", "Yashil", "Sariq"], "correct_index": 2, "explanation": "Inson ko'zi evolyutsiya natijasida yashil rang spektrlarini eng sezgir qabul qiladi."}
-]
-
-def get_filtered_backup():
-    # Chiqmagan zaxira savollarni qidirish
-    available = [q for q in BACKUP_QUESTIONS if not is_question_sent(q['question'])]
-    if available:
-        return random.choice(available)
-    # Agar barcha 30 ta savol ham chiqib ketgan bo'lsa, ro'yxatni boshidan aylantiradi
-    return random.choice(BACKUP_QUESTIONS)
-
-# --- GEMINI AI (MATNNI TOZALASH TIZIMI BILAN) ---
+# --- GEMINI AI (QAT'IY JSON SXEMA INTEGRATSIYASI) ---
 def get_ai_question():
-    mavzular = ["Mantiq", "Tarix", "IT", "San'at", "Geografiya", "Sport", "Koinot", "Biologiya", "Fizika", "Kimyo"]
+    # Kengaytirilgan va har xil mavzular ro'yxati
+    mavzular = [
+        "Mantiqiy va intellektual topishmoq", "Jahon tarixi va qiziqarli faktlar", 
+        "Zamonaviy IT, texnologiyalar va kashfiyotlar", "Klassik san'at, kino va adabiyot", 
+        "Sirli geografiya, davlatlar va urf-odatlar", "Sport tarixi va Olimpiada qiziqarli voqealari", 
+        "Koinot, astronomiya va qora tuynuklar", "Biologiya, anatomiya va tabiat mo'jizalari",
+        "Fizika qonunlari va kimyoviy parodokslar", "Mashhur shaxslarning yashirin hayotiy faktlari"
+    ]
+    
     mavzu = random.choice(mavzular)
-    random_modifier = random.randint(1000, 99999)
+    random_modifier = random.randint(10000, 999999)
     
     url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={GEMINI_KEY}"
     headers = {'Content-Type': 'application/json'}
     
-    prompt_text = f"""Siz Zakovat ekspertisiz. {mavzu} mavzusida mutloq yangi, qiziqarli savol tuzing. Kod: {random_modifier}.
-    Javobni FAQAT toza JSON ko'rinishida bering, hech qanday markdown belgilari (masalan ```json) qo'shmang:
-    {{
-      "question": "Savol matni?",
-      "options": ["V1", "V2", "V3", "V4"],
-      "correct_index": 0,
-      "explanation": "Qisqa izoh"
-    }}"""
+    prompt_text = f"""Siz tajribali Zakovat klubi muharririsiz. {mavzu} yo'nalishida o'ta qiziqarli, o'ylantiradigan, avval hech qayerda berilmagan mutloq yangi intellektual savol tuzing.
+    Savol lo'nda, aniq va qiziqarli bo'lsin. Variantlar ichida faqat bittasi to'g'ri bo'lishi shart. Kod: {random_modifier}."""
     
+    # Google API rad etolmaydigan qat'iy JSON sxemasi
     payload = {
         "contents": [{"parts": [{"text": prompt_text}]}],
-        "generationConfig": {"temperature": 0.95, "responseMimeType": "application/json"}
+        "generationConfig": {
+            "temperature": 1.0,  # Har xillikni (kreativlikni) maksimal qilish uchun
+            "responseMimeType": "application/json",
+            "responseSchema": {
+                "type": "OBJECT",
+                "properties": {
+                    "question": {"type": "STRING"},
+                    "options": {
+                        "type": "ARRAY",
+                        "items": {"type": "STRING"},
+                        "minItems": 4,
+                        "maxItems": 4
+                    },
+                    "correct_index": {"type": "INTEGER"},
+                    "explanation": {"type": "STRING"}
+                },
+                "required": ["question", "options", "correct_index", "explanation"]
+            }
+        }
     }
 
     try:
@@ -130,31 +109,33 @@ def get_ai_question():
         if response.status_code == 200:
             res_json = response.json()
             ai_text = res_json['candidates'][0]['content']['parts'][0]['text'].strip()
-            
-            # Agar Gemini baribir ```json yozib yuborgan bo'lsa, tozalaymiz
-            ai_text = re.sub(r'^```text|^```json|```$', '', ai_text, flags=re.MULTILINE).strip()
             return json.loads(ai_text)
-        return None
+        else:
+            logger.error(f"❌ Google API xato berdi. Status: {response.status_code}, Javob: {response.text}")
+            return None
     except Exception as e:
-        logger.error(f"❌ Gemini xatoligi: {e}")
+        logger.error(f"❌ Gemini tizimida xatolik: {e}")
         return None
 
-# --- SAVOL YUBORISH VA NAZORAT ---
+# --- SAVOL YUBORISH VA NAZORAT TIZIMI ---
 def send_quiz():
     try:
         data = None
-        # 1-Bosqich: Sun'iy intellektdan takrorlanmas yangi savol olishga urinish (5 marta)
-        for _ in range(5):
+        # Faqat sun'iy intellektdan yangi va takrorlanmas savol topguncha 5 marta urinadi
+        for i in range(5):
             potential_data = get_ai_question()
             if potential_data and 'question' in potential_data:
+                # Agar savol matni bazada bo'lmasa - qabul qilamiz
                 if not is_question_sent(potential_data['question']):
                     data = potential_data
                     break
+                else:
+                    logger.info(f"🔄 Takroriy savol rad etildi, qayta urinish: {i+1}")
         
-        # 2-Bosqich: Agar sun'iy intellekt ishlamasa, filtrdan o'tgan zaxira savolni olish
+        # Agar qat'iy sxemaga qaramay Gemini'dan mutloq javob bo'lmasa, favqulodda xabar logga yoziladi
         if not data:
-            logger.info("⚠️ Gemini API-dan javob bo'lmadi yoki hamma savollar takroriy. Zaxira ro'yxat ishlatilmoqda...")
-            data = get_filtered_backup()
+            logger.error("❌ Sun'iy intellektdan yangi savol olib bo'lmadi, API kalit yoki limitni tekshiring.")
+            return False
 
         explanation = data.get('explanation', "To'g'ri javob!")[:190]
         
@@ -168,7 +149,7 @@ def send_quiz():
             is_anonymous=True  
         )
         
-        # Kelajakda takrorlanmasligi uchun bazaga muhrlash
+        # Kelajakda bu savol umuman qaytalanmasligi uchun bazaga yozamiz
         save_sent_question(data['question'])
         
         conn = sqlite3.connect('zakovat_tizimi.db')
@@ -177,10 +158,10 @@ def send_quiz():
         conn.commit()
         conn.close()
         
-        logger.info(f"✅ Savol muvaffaqiyatli chiqdi: {data['question']}")
+        logger.info(f"✅ Kanalga mutloq yangi savol chiqdi: {data['question']}")
         return True
     except Exception as e:
-        logger.error(f"❌ Savol yuborish tizimida xato: {e}")
+        logger.error(f"❌ Savol yuborish tizimida kutilmagan xato: {e}")
         return False
 
 # --- HANDLERS ---
@@ -204,23 +185,23 @@ def handle_poll_answer(answer):
 
 @bot.message_handler(commands=['start'])
 def start_handler(message):
-    bot.reply_to(message, "👋 Assalomu alaykum! Zakovat AI to'liq xavfsiz va uzluksiz tizimiga xush kelibsiz.\n\n🤖 Bot endi bir marta chiqqan savolni qayta aslo chiqarmaydi!")
+    bot.reply_to(message, "👋 Zakovat AI boshqaruv tizimi faol!\n\n🤖 Tizim har safar Gemini intellektidan mutloq yangi, takrorlanmas savollar generatsiya qiladi.")
 
 @bot.message_handler(commands=['test'])
 def test_handler(message):
     me = bot.get_me()
-    bot.reply_to(message, f"🚀 Tizim: ONLAYN\n🤖 Bot: @{me.username}\n📢 Kanal: {CHANNEL}")
+    bot.reply_to(message, f"🚀 Tizim holati: ONLAYN\n🤖 Bot: @{me.username}\n📢 Kanal: {CHANNEL}")
 
 @bot.message_handler(commands=['savol'])
 def admin_savol(message):
     if message.from_user.id == ADMIN_ID:
-        bot.reply_to(message, "⏳ Tizim tekshirilmoqda va takrorlanmas yangi savol tayyorlanmoqda...")
+        bot.reply_to(message, "⏳ Gemini AI tizimidan mutloq yangi va har xil mavzuda savol olinmoqda...")
         if send_quiz():
-            bot.send_message(message.chat.id, "✅ Savol muvaffaqiyatli joylashtirildi!")
+            bot.send_message(message.chat.id, "✅ Yangi savol kanalga muvaffaqiyatli joylashtirildi!")
         else:
-            bot.send_message(message.chat.id, "❌ Kutilmagan xatolik yuz berdi.")
+            bot.send_message(message.chat.id, "❌ API ulanishda xato. Railway loglarini tekshiring yoki API kalit almashtiring.")
     else:
-        bot.reply_to(message, "⚠️ Bu buyruq faqat admin uchun!")
+        bot.reply_to(message, "⚠️ Bu buyruq faqat bot egasi uchun!")
 
 # --- SCHEDULER ---
 def scheduled_quiz():
@@ -233,5 +214,5 @@ if __name__ == "__main__":
         scheduler.add_job(scheduled_quiz, 'cron', hour=h, minute=0)
     scheduler.start()
     
-    logger.info("🚀 Bot barqaror rejimda ishga tushdi...")
+    logger.info("🚀 Bot cheksiz va har xil savollar rejimida ishga tushdi...")
     bot.infinity_polling()
